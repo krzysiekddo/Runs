@@ -16,15 +16,18 @@ export function EventsBlock({ onOpen }: { onOpen: (e: PlanEvent | null) => void 
     <section className="block">
       <div className="row-between">
         <button className="collapse-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span className={`collapse-chevron ${open ? "open" : ""}`}>
-            <Icon name="chevron" size={24} />
-          </span>
-          <span className="block-title">Wydarzenia</span>
-          {!open && upcoming.length > 0 && (
-            <span className="muted small">
-              {upcoming.length}, najbliższe {fmtDate(upcoming[0].date)}
+          {/* Inner flex wrapper: Safari does not reliably lay out a <button> itself as a flex box. */}
+          <span className="collapse-inner">
+            <span className={`collapse-chevron ${open ? "open" : ""}`}>
+              <Icon name="chevron" size={24} />
             </span>
-          )}
+            <span className="collapse-title">Wydarzenia</span>
+            {!open && upcoming.length > 0 && (
+              <span className="collapse-meta">
+                {upcoming.length}, najbliższe {fmtDate(upcoming[0].date)}
+              </span>
+            )}
+          </span>
         </button>
         <button className="text-btn" onClick={() => onOpen(null)}>
           Dodaj

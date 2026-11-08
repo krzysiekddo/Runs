@@ -1777,20 +1777,33 @@ input[type="date"]::-webkit-date-and-time-value {
 /* ---------- collapsible block ---------- */
 
 .collapse-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 40px;
+  display: block;
+  padding: 8px 0;
   text-align: left;
 }
 
-.collapse-head .block-title {
-  padding: 0 6px 0 0;
-  line-height: 1.2;
+.collapse-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 24px;
+}
+
+.collapse-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.collapse-meta {
+  font-size: 0.875rem;
+  color: var(--muted);
 }
 
 .collapse-chevron {
-  display: inline-flex;
+  display: flex;
+  width: 24px;
+  height: 24px;
   margin-left: -4px;
   color: var(--muted);
   transition: transform 0.15s;
