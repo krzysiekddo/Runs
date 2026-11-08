@@ -19,7 +19,7 @@ export function EventsBlock({ onOpen }: { onOpen: (e: PlanEvent | null) => void 
           <span className={`collapse-chevron ${open ? "open" : ""}`}>
             <Icon name="chevron" size={18} />
           </span>
-          <h2 className="block-title">Wydarzenia</h2>
+          <span className="block-title">Wydarzenia</span>
           {!open && upcoming.length > 0 && (
             <span className="muted small">
               {upcoming.length}, najbliższe {fmtDate(upcoming[0].date)}
