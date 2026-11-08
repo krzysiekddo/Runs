@@ -1,7 +1,7 @@
 import { FirebaseError } from "firebase/app";
 import { onAuthStateChanged, signInWithPopup, type Auth, type User } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { auth, db, googleProvider } from "./firebase";
 import { generatePlan } from "./lib/plan";
 import { saveProfile, useServerStatus, useUserData } from "./lib/store";
@@ -134,6 +134,9 @@ function Home({ db, user }: { db: Firestore; user: User }) {
     setTab("today");
   }
 
+  // The plan is derived from the profile and the logged runs, so it adapts after every run.
+  const plan = useMemo(() => (data.profile ? generatePlan(data.profile, data.runs) : null), [data.profile, data.runs]);
+
   const banner =
     serverProblem ??
     (stuck ? "Zmiany są zapisane na tym urządzeniu, ale jeszcze nie dotarły na serwer. Sprawdź połączenie z internetem." : null);
@@ -147,14 +150,14 @@ function Home({ db, user }: { db: Firestore; user: User }) {
     );
   }
   if (data.loading) return <Loading />;
-  if (!data.profile || !data.plan || editingProfile) {
+  if (!data.profile || !plan || editingProfile) {
     return (
       <>
         {banner && <SyncBanner text={banner} />}
         <Onboarding
           initial={data.profile}
           onDone={onPlan}
-          onCancel={data.profile && data.plan ? () => setEditingProfile(false) : undefined}
+          onCancel={data.profile && plan ? () => setEditingProfile(false) : undefined}
         />
       </>
     );
@@ -169,7 +172,7 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         db,
         user,
         profile: data.profile,
-        plan: data.plan,
+        plan,
         runs: data.runs,
         addRun: (date) => setOverlay({ kind: "add", date }),
         editRun: (run) => setOverlay({ kind: "edit", run }),

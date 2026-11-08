@@ -3,7 +3,7 @@ import { useState } from "react";
 import { deleteAllData } from "../lib/store";
 import { effectiveHrMax } from "../lib/analysis";
 import { addDays, fmtDate, fmtDuration, fmtKmShort, fmtPace, mondayOf, today } from "../lib/format";
-import { computeVdot, RACE_DISTANCES } from "../lib/plan";
+import { RACE_DISTANCES } from "../lib/plan";
 import { hrZones, predictTime, trainingPaces } from "../lib/vdot";
 import { auth } from "../firebase";
 import { useApp } from "./common";
@@ -13,7 +13,7 @@ const SHOE_LIFE_KM = 700;
 export function Progress() {
   const { db, plan, profile, runs, editProfile, user, notify } = useApp();
   const [confirmReset, setConfirmReset] = useState(false);
-  const vdot = computeVdot(profile);
+  const vdot = plan.vdot;
   const paces = trainingPaces(vdot);
   const hr = effectiveHrMax(profile, runs);
   const zones = hr.value ? hrZones(hr.value, profile.hrRest) : undefined;
@@ -39,7 +39,10 @@ export function Progress() {
 
       <section className="block">
         <h2 className="block-title">Prognozy wyników</h2>
-        <p className="muted small">Z wyniku {fmtKmShort(profile.recent.km)} km w {fmtDuration(profile.recent.sec)} (VDOT {vdot.toFixed(1)}).</p>
+        <p className="muted small">
+          Według aktualnej formy (VDOT {vdot.toFixed(1)}): wynik {fmtKmShort(profile.recent.km)} km w {fmtDuration(profile.recent.sec)},
+          postęp zakładany w planie{plan.adjustment ? " i Twoje ostatnie biegi" : ""}.
+        </p>
         <div className="predictions">
           {RACE_DISTANCES.map((r) => (
             <div key={r.km} className="prediction">

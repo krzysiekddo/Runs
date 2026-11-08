@@ -264,7 +264,7 @@ function Summary({ profile }: { profile: Profile }) {
     { name: "Interwały", pace: fmtPace((p.interval.fast + p.interval.slow) / 2), use: "odcinki 1000 m" },
   ];
   return (
-    <Step title="Twoje tempa" lead={`Forma (VDOT) ${vdot.toFixed(1)}. Plan dostosuje się, gdy zaktualizujesz wynik.`}>
+    <Step title="Twoje tempa" lead={`Forma (VDOT) ${vdot.toFixed(1)}. To tempa na start – w planie będą przyspieszać razem z formą i dopasowywać się do Twoich biegów.`}>
       <div className="pace-table">
         {rows.map((r) => (
           <div key={r.name} className="pace-row">

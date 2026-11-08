@@ -1621,3 +1621,43 @@ input[type="date"]::-webkit-date-and-time-value {
   padding: 0 4px;
   max-width: 44ch;
 }
+
+/* ---------- fitness progression ---------- */
+
+.fitness {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.fitness-rows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fitness-rows div {
+  display: flex;
+  flex-direction: column;
+}
+
+.fitness-rows .muted {
+  font-size: 0.8rem;
+}
+
+.fitness-rows strong {
+  font-stretch: 72%;
+  font-weight: 700;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.good-text {
+  color: var(--good);
+  font-weight: 600;
+}

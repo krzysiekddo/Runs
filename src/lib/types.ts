@@ -62,6 +62,8 @@ export type Phase = "base" | "build" | "peak" | "taper";
 export type PlanWeek = {
   index: number;
   start: string;
+  /** Fitness the paces of this week are based on. */
+  vdot: number;
   phase: Phase;
   km: number;
   deload: boolean;
@@ -70,7 +72,15 @@ export type PlanWeek = {
 
 export type Plan = {
   generatedAt: string;
+  /** Fitness assumed for the current week (after adjustment from logged runs). */
   vdot: number;
+  startVdot: number;
+  /** Fitness the plan builds towards by its last week. */
+  endVdot: number;
+  /** Fitness the runner's target time would need, when a target is set. */
+  goalVdot?: number;
+  /** Shift applied from the current week on, based on logged runs. */
+  adjustment?: { delta: number; source?: "race" | "tempo" | "hr"; runs: number };
   weeks: PlanWeek[];
 };
 
