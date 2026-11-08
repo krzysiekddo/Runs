@@ -1,6 +1,6 @@
 // Rule-based training plan generator: periodized weeks, ~8% weekly growth, deload every 4th week.
-import { addDays, daysBetween, mondayOf, today } from "./format.ts";
-import type { Phase, Plan, PlanWeek, Profile, Workout, WorkoutType } from "./types.ts";
+import { addDays, daysBetween, fmtDate, mondayOf, toISODate, today } from "./format.ts";
+import type { Phase, Plan, PlanEvent, PlanWeek, Profile, Workout, WorkoutType } from "./types.ts";
 import { predictTime, trainingPaces, vdotFromRace, type TrainingPaces } from "./vdot.ts";
 
 export const RACE_DISTANCES = [
@@ -135,7 +135,12 @@ export function computeVdot(profile: Profile): number {
   return vdotFromRace(profile.recent.km, profile.recent.sec);
 }
 
-export function generatePlan(profile: Profile, startDate = today()): Plan {
+export function planStartOf(profile: Profile): string {
+  return profile.planStart ?? (profile.createdAt ? toISODate(new Date(profile.createdAt)) : today());
+}
+
+export function generatePlan(profile: Profile): Plan {
+  const startDate = planStartOf(profile);
   const vdot = computeVdot(profile);
   const paces = trainingPaces(vdot);
   const days = [...profile.days].sort((a, b) => a - b);
@@ -224,18 +229,91 @@ export function generatePlan(profile: Profile, startDate = today()): Plan {
       }
     }
 
-    const visible = workouts.filter((w) => w.date >= startDate);
-    weeks.push({
-      index: i,
-      start,
-      phase,
-      deload,
-      km: Math.round(workouts.reduce((s, w) => s + w.km, 0)),
-      workouts: visible.sort((a, b) => a.date.localeCompare(b.date)),
-    });
+    weeks.push({ index: i, start, phase, deload, km: 0, workouts });
   }
 
+  const raceDate = isRacePlan ? goal.raceDate : undefined;
+  applyEvents(weeks, profile.events ?? [], vdot, paces, raceDate);
+
+  for (const w of weeks) {
+    w.km = Math.round(w.workouts.reduce((sum, x) => sum + x.km, 0));
+    w.workouts = w.workouts.filter((x) => x.date >= startDate).sort((a, b) => a.date.localeCompare(b.date));
+  }
   return { generatedAt: new Date().toISOString(), vdot, weeks };
+}
+
+/** Days of easy running only after a race: ~0.6 day per km all-out, ~0.25 when run as a workout. */
+export function recoveryDays(e: PlanEvent): number {
+  const km = e.km ?? 5;
+  return e.effort === "workout" ? Math.max(1, Math.round(km * 0.25)) : Math.max(2, Math.round(km * 0.6));
+}
+
+const isHard = (w: Workout) => w.type === "tempo" || w.type === "intervals";
+
+/** Fits other races and breaks into the generated weeks (mutates them). */
+function applyEvents(weeks: PlanWeek[], events: PlanEvent[], vdot: number, paces: TrainingPaces, mainRaceDate?: string) {
+  const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+
+  for (const e of sorted.filter((x) => x.type === "off")) {
+    const end = e.endDate && e.endDate >= e.date ? e.endDate : e.date;
+    for (const w of weeks) w.workouts = w.workouts.filter((x) => x.date < e.date || x.date > end);
+  }
+
+  for (const e of sorted.filter((x) => x.type === "race" && x.km)) {
+    if (e.date === mainRaceDate) continue;
+    const km = e.km!;
+    const allOut = e.effort !== "workout";
+    const week = weeks.find((w) => e.date >= w.start && e.date < addDays(w.start, 7));
+    if (!week) continue;
+    const plannedWeekKm = week.workouts.reduce((s, x) => s + x.km, 0);
+    const recEnd = addDays(e.date, recoveryDays(e));
+    const label = `po starcie ${fmtDate(e.date)}`;
+
+    for (const w of weeks) {
+      w.workouts = w.workouts.flatMap((x): Workout[] => {
+        const d = daysBetween(e.date, x.date);
+        if (d === 0) return [];
+        if (allOut && (d === -1 || d === 1)) return []; // rest the day before and after
+        if (d >= -3 && d <= 1 && isHard(x)) {
+          return [{ ...x, type: "easy", title: "Bieg spokojny", km: round05(Math.min(x.km, 5)), pace: paces.easy, details: "Lekko przed startem – bez przyspieszeń" }];
+        }
+        if (d > 1 && x.date <= recEnd && x.type !== "race") {
+          const factor = x.type === "long" ? 0.7 : isHard(x) ? 0.8 : 0.85;
+          return [{
+            ...x,
+            type: x.type === "long" ? "long" : "easy",
+            title: x.type === "long" ? "Długie wybieganie" : "Bieg spokojny",
+            km: round05(Math.max(3, x.km * factor)),
+            pace: paces.easy,
+            details: `Regeneracja ${label} – tylko spokojnie, nawet jeśli czujesz się świeżo`,
+          }];
+        }
+        return [x];
+      });
+    }
+
+    const pace = predictTime(vdot, km) / km + (allOut ? 0 : 15);
+    week.workouts.push({
+      id: `w-${e.date}`,
+      date: e.date,
+      type: "race",
+      title: e.title?.trim() || `Start: ${raceLabel(km)}`,
+      km,
+      pace: { fast: pace - 3, slow: pace + 3 },
+      details: allOut
+        ? "Rozgrzewka 10–15 min truchtu, pierwszy kilometr spokojniej, potem równo."
+        : "Bieg treningowy – mocno, ale bez walki o wynik. Tempo bliskie progowemu.",
+    });
+
+    // Keep the race week near its planned volume by trimming the other easy runs.
+    const extra = week.workouts.reduce((s, x) => s + x.km, 0) - plannedWeekKm;
+    const easies = week.workouts.filter((x) => (x.type === "easy" || x.type === "strides") && x.date !== e.date);
+    const easyKm = easies.reduce((s, x) => s + x.km, 0);
+    if (extra > 0 && easyKm > 0) {
+      const f = Math.max(0, (easyKm - extra) / easyKm);
+      for (const x of easies) x.km = round05(Math.max(3, x.km * f));
+    }
+  }
 }
 
 export function workoutOn(plan: Plan | null | undefined, date: string): Workout | undefined {

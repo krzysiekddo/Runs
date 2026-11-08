@@ -2,7 +2,7 @@ import type { User } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { WORKOUT_LABEL } from "../lib/plan";
-import type { Plan, Profile, Run, WorkoutType } from "../lib/types";
+import type { Plan, PlanEvent, Profile, Run, WorkoutType } from "../lib/types";
 
 export type AppState = {
   db: Firestore;
@@ -14,6 +14,8 @@ export type AppState = {
   editRun: (run: Run) => void;
   openRun: (run: Run) => void;
   editProfile: () => void;
+  /** Stores the plan's events and regenerates the plan around them. */
+  saveEvents: (events: PlanEvent[], message: string) => void;
   /** Shows a short message at the bottom of the screen. */
   notify: (message: string) => void;
 };

@@ -92,6 +92,9 @@ export function Onboarding({
       days: [...d.days].sort((a, b) => a - b),
       longRunDay,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
+      // A new goal starts a new training block; upcoming events carry over.
+      planStart: today(),
+      events: (initial?.events ?? []).filter((e) => (e.endDate ?? e.date) >= today()),
     };
   }, [d, recentSec, recentValid, targetSec, weeklyKm, initial?.createdAt]);
 

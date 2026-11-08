@@ -2,12 +2,16 @@ import { useState } from "react";
 import { addDays, DAY_SHORT, fmtDate, fmtKmShort, fmtPace, today, weekday } from "../lib/format";
 import { PHASE_LABEL, raceLabel } from "../lib/plan";
 import type { PlanWeek, Workout } from "../lib/types";
-import { Icon, useApp } from "./common";
+import { Icon, Sheet, useApp } from "./common";
+import { EventEditor, EventsBlock } from "./Events";
+import type { PlanEvent } from "../lib/types";
 
 export function PlanView() {
   const { plan, profile } = useApp();
   const t = today();
   const [showPast, setShowPast] = useState(false);
+  // undefined = closed, null = new event
+  const [editing, setEditing] = useState<PlanEvent | null | undefined>(undefined);
   const currentIdx = plan.weeks.findIndex((w) => t < addDays(w.start, 7));
   const weeks = showPast ? plan.weeks : plan.weeks.slice(Math.max(0, currentIdx));
   const g = profile.goal;
@@ -26,6 +30,8 @@ export function PlanView() {
         </p>
       </header>
 
+      <EventsBlock onOpen={setEditing} />
+
       {currentIdx > 0 && (
         <button className="text-btn" onClick={() => setShowPast((s) => !s)}>
           {showPast ? "Ukryj poprzednie tygodnie" : `Pokaż poprzednie tygodnie (${currentIdx})`}
@@ -35,6 +41,12 @@ export function PlanView() {
       {weeks.map((w) => (
         <Week key={w.index} week={w} current={w.index === currentIdx} />
       ))}
+
+      {editing !== undefined && (
+        <Sheet title={editing ? "Edytuj wydarzenie" : "Nowe wydarzenie"} onClose={() => setEditing(undefined)}>
+          <EventEditor event={editing} onDone={() => setEditing(undefined)} />
+        </Sheet>
+      )}
     </div>
   );
 }

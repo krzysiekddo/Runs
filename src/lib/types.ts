@@ -22,6 +22,23 @@ export type Profile = {
   days: number[];
   longRunDay: number;
   createdAt: string;
+  /** First day of the current training block; weeks and phases count from its Monday. */
+  planStart?: string;
+  events?: PlanEvent[];
+};
+
+/**
+ * Something that interrupts the plan: another race ("race") or days without running ("off").
+ * A race run "workout" (as a hard training run) needs less recovery than one run all-out.
+ */
+export type PlanEvent = {
+  id: string;
+  type: "race" | "off";
+  date: string;
+  endDate?: string;
+  km?: number;
+  title?: string;
+  effort?: "race" | "workout";
 };
 
 export type WorkoutType = "easy" | "long" | "tempo" | "intervals" | "strides" | "race";

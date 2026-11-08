@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithPopup, type Auth, type User } from "fireb
 import type { Firestore } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "./firebase";
+import { generatePlan } from "./lib/plan";
 import { saveProfile, useServerStatus, useUserData } from "./lib/store";
 import type { Plan, Profile, Run } from "./lib/types";
 import { AddRun } from "./ui/AddRun";
@@ -175,6 +176,14 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         openRun: (run) => setOverlay({ kind: "run", run }),
         editProfile: () => setEditingProfile(true),
         notify: setToast,
+        saveEvents: (events, message) => {
+          const profile = { ...data.profile!, events };
+          saveProfile(db, user.uid, profile, generatePlan(profile)).catch((e) => {
+            console.error(e);
+            setToast("Serwer nie przyjął zmian w planie.");
+          });
+          setToast(message);
+        },
       }}
     >
       <div className="app">
