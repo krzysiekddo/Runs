@@ -16,5 +16,12 @@ npm install
 npm run dev
 ```
 
-Aplikacja działa pod adresem <http://localhost:5173>. Domena `localhost` jest domyślnie autoryzowana w Firebase.
-Domenę produkcyjną dodaj w **Authentication > Settings > Authorized domains**.
+Aplikacja działa pod adresem <http://localhost:5173/Runs/>. Domena `localhost` jest domyślnie autoryzowana w Firebase.
+
+## Wdrożenie na GitHub Pages
+
+Każdy push na `main` buduje i publikuje aplikację pod adresem <https://krzysiekddo.github.io/Runs/> (workflow `.github/workflows/deploy.yml`).
+
+1. W **Settings > Pages** repozytorium ustaw **Source: GitHub Actions**.
+2. W **Settings > Secrets and variables > Actions** dodaj wartości z `.env` jako sekrety o tych samych nazwach.
+3. W konsoli Firebase, w **Authentication > Settings > Authorized domains**, dodaj `krzysiekddo.github.io`.
