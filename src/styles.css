@@ -1776,16 +1776,19 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* ---------- collapsible block ---------- */
 
-.collapse-head {
-  display: block;
-  padding: 8px 0;
-  text-align: left;
-}
-
-.collapse-inner {
+.collapse-row {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-height: 40px;
+  cursor: pointer;
+  line-height: 24px;
+  border-radius: var(--r-sm);
+}
+
+.collapse-action {
+  margin-left: auto;
+  padding: 8px 0 8px 12px;
   line-height: 24px;
 }
 
