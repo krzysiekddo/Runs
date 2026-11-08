@@ -16,6 +16,7 @@ export type AppState = {
   editProfile: () => void;
   /** Stores the plan's events and regenerates the plan around them. */
   saveEvents: (events: PlanEvent[], message: string) => void;
+  openSettings: () => void;
   /** Shows a short message at the bottom of the screen. */
   notify: (message: string) => void;
 };
@@ -70,6 +71,7 @@ const PATHS: Record<string, string> = {
   camera: "M4 8h3l2-3h6l2 3h3v11H4V8Zm8 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   chevron: "M9 6l6 6-6 6",
   back: "M15 6l-6 6 6 6",
+  gear: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm7.4 3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z",
 };
 
 export function Icon({ name, size = 22 }: { name: keyof typeof PATHS | string; size?: number }) {
@@ -174,5 +176,14 @@ export function DurationInput({
         </label>
       ))}
     </div>
+  );
+}
+
+export function SettingsButton() {
+  const { openSettings } = useApp();
+  return (
+    <button className="icon-btn" onClick={openSettings} aria-label="Ustawienia">
+      <Icon name="gear" size={20} />
+    </button>
   );
 }

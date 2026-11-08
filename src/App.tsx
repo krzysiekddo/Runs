@@ -9,6 +9,8 @@ import type { Plan, Profile, Run } from "./lib/types";
 import { AddRun } from "./ui/AddRun";
 import { AppCtx, Icon, Sheet } from "./ui/common";
 import { Onboarding } from "./ui/Onboarding";
+import { SettingsPanel } from "./ui/Settings";
+import { useSettings } from "./lib/settings";
 import { PlanView } from "./ui/PlanView";
 import { Progress } from "./ui/Progress";
 import { RunDetail, RunsView } from "./ui/Runs";
@@ -107,6 +109,8 @@ function Home({ db, user }: { db: Firestore; user: User }) {
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, updateSettings] = useSettings();
   const close = useCallback(() => setOverlay(null), []);
 
   // Re-check the server whenever local changes are waiting for it.
@@ -179,6 +183,7 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         openRun: (run) => setOverlay({ kind: "run", run }),
         editProfile: () => setEditingProfile(true),
         notify: setToast,
+        openSettings: () => setSettingsOpen(true),
         saveEvents: (events, message) => {
           const profile = { ...data.profile!, events };
           saveProfile(db, user.uid, profile, generatePlan(profile)).catch((e) => {
@@ -218,6 +223,11 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         {overlay?.kind === "edit" && (
           <Sheet title="Edytuj bieg" onClose={close}>
             <AddRun run={overlay.run} onDone={close} />
+          </Sheet>
+        )}
+        {settingsOpen && (
+          <Sheet title="Ustawienia" onClose={() => setSettingsOpen(false)}>
+            <SettingsPanel settings={settings} update={updateSettings} onClose={() => setSettingsOpen(false)} />
           </Sheet>
         )}
         {toast && (

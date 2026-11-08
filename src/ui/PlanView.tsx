@@ -3,7 +3,7 @@ import { addDays, DAY_SHORT, fmtDate, fmtDuration, fmtKmShort, fmtPace, today, w
 import { predictTime, trainingPaces } from "../lib/vdot";
 import { PHASE_LABEL, raceLabel } from "../lib/plan";
 import type { PlanWeek, Workout } from "../lib/types";
-import { Icon, Sheet, useApp } from "./common";
+import { Icon, SettingsButton, Sheet, useApp } from "./common";
 import { EventEditor, EventsBlock } from "./Events";
 import type { PlanEvent } from "../lib/types";
 
@@ -19,16 +19,19 @@ export function PlanView() {
 
   return (
     <div className="screen">
-      <header className="screen-head">
-        <h1 className="screen-title">Plan</h1>
-        <p className="muted">
-          {g.type === "race" && g.raceKm && g.raceDate
-            ? `${raceLabel(g.raceKm)}, ${fmtDate(g.raceDate, { day: "numeric", month: "long" })}`
-            : g.type === "fitness"
-              ? "Blok na lepszą formę"
-              : "Regularne bieganie"}
-          {`, ${plan.weeks.length} tygodni`}
-        </p>
+      <header className="screen-head row-between">
+        <div>
+          <h1 className="screen-title">Plan</h1>
+          <p className="muted">
+            {g.type === "race" && g.raceKm && g.raceDate
+              ? `${raceLabel(g.raceKm)}, ${fmtDate(g.raceDate, { day: "numeric", month: "long" })}`
+              : g.type === "fitness"
+                ? "Blok na lepszą formę"
+                : "Regularne bieganie"}
+            {`, ${plan.weeks.length} tygodni`}
+          </p>
+        </div>
+        <SettingsButton />
       </header>
 
       <FitnessNote />

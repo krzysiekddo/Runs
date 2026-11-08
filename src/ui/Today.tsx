@@ -1,9 +1,9 @@
-import { effectiveHrMax } from "../lib/analysis";
+import { effectiveHrMax, evaluateRun } from "../lib/analysis";
 import { addDays, DAY_SHORT, fmtDate, fmtKmShort, fmtPace, fmtRelativeDay, today } from "../lib/format";
 import { PHASE_LABEL, weekOf, workoutOn } from "../lib/plan";
 import type { Run, Workout } from "../lib/types";
 import { hrZones } from "../lib/vdot";
-import { Icon, TypeTag, useApp } from "./common";
+import { Icon, SettingsButton, TypeTag, useApp } from "./common";
 import { RunRow } from "./Runs";
 
 export function Today() {
@@ -18,8 +18,9 @@ export function Today() {
 
   return (
     <div className="screen">
-      <header className="screen-head">
+      <header className="screen-head row-between">
         <p className="date-line">{fmtDate(t, { weekday: "long", day: "numeric", month: "long" })}</p>
+        <SettingsButton />
       </header>
 
       {workout ? (
@@ -82,18 +83,22 @@ export function Today() {
 }
 
 function WorkoutHero({ workout, run, easyHr, onAdd, onOpen }: { workout: Workout; run?: Run; easyHr?: number; onAdd: () => void; onOpen: (r: Run) => void }) {
+  const { profile, runs } = useApp();
+  // Pastel orange until done; green when it matched the plan, yellow when it did not.
+  const verdict = run ? evaluateRun(run, workout, profile, runs) : undefined;
+  const status = !verdict ? "s-pending" : verdict.tone === "warn" ? "s-warn" : "s-done";
   const easy = workout.type === "easy" || workout.type === "long" || workout.type === "strides";
   const pace =
     workout.pace.slow - workout.pace.fast > 15
       ? `${fmtPace(workout.pace.fast)}–${fmtPace(workout.pace.slow)}`
       : fmtPace((workout.pace.fast + workout.pace.slow) / 2);
   return (
-    <section className={`hero t-${workout.type}`}>
+    <section className={`hero t-${workout.type} ${status}`}>
       <div className="hero-top">
         <TypeTag type={workout.type} />
         {run && (
           <span className="hero-check">
-            <Icon name="check" size={16} /> Zrobione
+            <Icon name="check" size={16} /> {status === "s-warn" ? "Zrobione, z uwagami" : "Zrobione"}
           </span>
         )}
       </div>

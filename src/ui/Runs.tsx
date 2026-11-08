@@ -4,7 +4,7 @@ import { fmtDate, fmtDuration, fmtKm, fmtKmShort, fmtPace, fmtRelativeDay } from
 import { workoutOn } from "../lib/plan";
 import { deleteRun } from "../lib/store";
 import type { Run } from "../lib/types";
-import { Icon, Stat, TypeTag, useApp } from "./common";
+import { Icon, SettingsButton, Stat, TypeTag, useApp } from "./common";
 
 export function RunRow({ run }: { run: Run }) {
   const { plan, profile, runs, openRun } = useApp();
@@ -37,9 +37,12 @@ export function RunsView() {
     <div className="screen">
       <header className="screen-head row-between">
         <h1 className="screen-title">Biegi</h1>
-        <button className="pill-btn" onClick={() => addRun()}>
-          <Icon name="plus" size={18} /> Dodaj
-        </button>
+        <div className="head-actions">
+          <button className="pill-btn" onClick={() => addRun()}>
+            <Icon name="plus" size={18} /> Dodaj
+          </button>
+          <SettingsButton />
+        </div>
       </header>
       {runs.length === 0 ? (
         <div className="empty">

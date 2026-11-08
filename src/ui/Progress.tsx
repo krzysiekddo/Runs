@@ -1,18 +1,13 @@
-import { signOut } from "firebase/auth";
-import { useState } from "react";
-import { deleteAllData } from "../lib/store";
 import { effectiveHrMax } from "../lib/analysis";
 import { addDays, fmtDate, fmtDuration, fmtKmShort, fmtPace, mondayOf, today } from "../lib/format";
 import { RACE_DISTANCES } from "../lib/plan";
 import { hrZones, predictTime, trainingPaces } from "../lib/vdot";
-import { auth } from "../firebase";
-import { useApp } from "./common";
+import { SettingsButton, useApp } from "./common";
 
 const SHOE_LIFE_KM = 700;
 
 export function Progress() {
-  const { db, plan, profile, runs, editProfile, user, notify } = useApp();
-  const [confirmReset, setConfirmReset] = useState(false);
+  const { plan, profile, runs } = useApp();
   const vdot = plan.vdot;
   const paces = trainingPaces(vdot);
   const hr = effectiveHrMax(profile, runs);
@@ -33,8 +28,9 @@ export function Progress() {
 
   return (
     <div className="screen">
-      <header className="screen-head">
+      <header className="screen-head row-between">
         <h1 className="screen-title">Postępy</h1>
+        <SettingsButton />
       </header>
 
       <section className="block">
@@ -103,11 +99,11 @@ export function Progress() {
               </dd>
             </dl>
             {hr.estimated && (
-              <p className="muted small">Szacunek z najwyższego tętna w Twoich międzyczasach. Wpisz prawdziwe tętno maks. w ustawieniach planu.</p>
+              <p className="muted small">Szacunek z najwyższego tętna w Twoich międzyczasach. Wpisz prawdziwe tętno maks. w ustawieniach (zębatka → Zmień cel i dane).</p>
             )}
           </>
         ) : (
-          <p className="muted small">Podaj tętno maksymalne w ustawieniach planu albo dodaj bieg z międzyczasami, żeby zobaczyć strefy.</p>
+          <p className="muted small">Podaj tętno maksymalne w ustawieniach (zębatka → Zmień cel i dane) albo dodaj bieg z międzyczasami, żeby zobaczyć strefy.</p>
         )}
       </section>
 
@@ -132,42 +128,6 @@ export function Progress() {
         </section>
       )}
 
-      <section className="block settings">
-        <button className="secondary block-btn" onClick={editProfile}>
-          Zmień cel i przelicz plan
-        </button>
-        {confirmReset ? (
-          <div className="reset-confirm">
-            <p>Usunąć profil, plan i wszystkie {runs.length} biegi? Tego nie da się cofnąć.</p>
-            <div className="detail-actions">
-              <button className="secondary" onClick={() => setConfirmReset(false)}>
-                Anuluj
-              </button>
-              <button
-                className="danger"
-                onClick={() => {
-                  deleteAllData(db, user.uid).catch((e) => {
-                    console.error(e);
-                    notify("Nie udało się usunąć danych z serwera.");
-                  });
-                }}
-              >
-                Usuń wszystko
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button className="text-btn danger-text" onClick={() => setConfirmReset(true)}>
-            Usuń moje dane i zacznij od nowa
-          </button>
-        )}
-        <p className="muted small">
-          Zalogowano jako {user.displayName ?? user.email}.{" "}
-          <button className="text-btn inline" onClick={() => auth && signOut(auth)}>
-            Wyloguj
-          </button>
-        </p>
-      </section>
     </div>
   );
 }
