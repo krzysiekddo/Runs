@@ -66,14 +66,18 @@ export function RunsView() {
 }
 
 export function RunDetail({ run, onClose }: { run: Run; onClose: () => void }) {
-  const { db, user, plan, profile, runs, editRun } = useApp();
+  const { db, user, plan, profile, runs, editRun, notify } = useApp();
   const [confirming, setConfirming] = useState(false);
   const workout = workoutOn(plan, run.date);
   const verdict = evaluateRun(run, workout, profile, runs);
   const pace = runPace(run);
 
-  async function remove() {
-    await deleteRun(db, user.uid, run.id);
+  function remove() {
+    deleteRun(db, user.uid, run.id).catch((e) => {
+      console.error(e);
+      notify("Serwer nie przyjął usunięcia biegu.");
+    });
+    notify("Bieg usunięty");
     onClose();
   }
 

@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, type Auth, type User } from "fireb
 import type { Firestore } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
 import { auth, db, googleProvider } from "./firebase";
-import { saveProfile, useUserData } from "./lib/store";
+import { saveProfile, useServerStatus, useUserData } from "./lib/store";
 import type { Plan, Profile, Run } from "./lib/types";
 import { AddRun } from "./ui/AddRun";
 import { AppCtx, Icon, Sheet } from "./ui/common";
@@ -105,13 +105,37 @@ function Home({ db, user }: { db: Firestore; user: User }) {
   const [tab, setTab] = useState<Tab>("today");
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const close = useCallback(() => setOverlay(null), []);
 
+  // Re-check the server whenever local changes are waiting for it.
+  const serverProblem = useServerStatus(db, user.uid, data.pendingWrites);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!data.pendingWrites) return setStuck(false);
+    const t = setTimeout(() => setStuck(true), 10_000);
+    return () => clearTimeout(t);
+  }, [data.pendingWrites]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   async function onPlan(profile: Profile, plan: Plan) {
-    await saveProfile(db, user.uid, profile, plan);
+    // The local cache updates instantly; the server write finishes in the background.
+    saveProfile(db, user.uid, profile, plan).catch((e) => {
+      console.error(e);
+      setToast("Serwer nie przyjął planu. Plan jest tylko na tym urządzeniu.");
+    });
     setEditingProfile(false);
     setTab("today");
   }
+
+  const banner =
+    serverProblem ??
+    (stuck ? "Zmiany są zapisane na tym urządzeniu, ale jeszcze nie dotarły na serwer. Sprawdź połączenie z internetem." : null);
 
   if (data.error) {
     return (
@@ -124,11 +148,14 @@ function Home({ db, user }: { db: Firestore; user: User }) {
   if (data.loading) return <Loading />;
   if (!data.profile || !data.plan || editingProfile) {
     return (
-      <Onboarding
-        initial={data.profile}
-        onDone={onPlan}
-        onCancel={data.profile && data.plan ? () => setEditingProfile(false) : undefined}
-      />
+      <>
+        {banner && <SyncBanner text={banner} />}
+        <Onboarding
+          initial={data.profile}
+          onDone={onPlan}
+          onCancel={data.profile && data.plan ? () => setEditingProfile(false) : undefined}
+        />
+      </>
     );
   }
 
@@ -147,9 +174,11 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         editRun: (run) => setOverlay({ kind: "edit", run }),
         openRun: (run) => setOverlay({ kind: "run", run }),
         editProfile: () => setEditingProfile(true),
+        notify: setToast,
       }}
     >
       <div className="app">
+        {banner && <SyncBanner text={banner} />}
         <main className="content">
           {tab === "today" && <Today />}
           {tab === "plan" && <PlanView />}
@@ -179,6 +208,11 @@ function Home({ db, user }: { db: Firestore; user: User }) {
             <AddRun run={overlay.run} onDone={close} />
           </Sheet>
         )}
+        {toast && (
+          <div className="toast" role="status">
+            {toast}
+          </div>
+        )}
         {liveRun && (
           <Sheet title={liveRun.title || "Bieg"} onClose={close}>
             <RunDetail run={liveRun} onClose={close} />
@@ -186,6 +220,14 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         )}
       </div>
     </AppCtx.Provider>
+  );
+}
+
+function SyncBanner({ text }: { text: string }) {
+  return (
+    <div className="sync-banner" role="alert">
+      {text}
+    </div>
   );
 }
 

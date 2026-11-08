@@ -14,6 +14,8 @@ export type AppState = {
   editRun: (run: Run) => void;
   openRun: (run: Run) => void;
   editProfile: () => void;
+  /** Shows a short message at the bottom of the screen. */
+  notify: (message: string) => void;
 };
 
 export const AppCtx = createContext<AppState | null>(null);

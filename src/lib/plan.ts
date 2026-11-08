@@ -190,9 +190,6 @@ export function generatePlan(profile: Profile, startDate = today()): Plan {
     } else {
       const qualityCount = phase === "base" ? 0 : phase === "taper" ? 1 : qualityMax;
       const qualityDays = pickQualityDays(days, longDay, Math.min(qualityCount, days.length - 1));
-      const longKm = Math.min(longCap, days.length <= 2 ? weekKm * 0.5 : weekKm * 0.3, phase === "taper" ? longCap * 0.7 : longCap);
-      let remaining = weekKm - longKm;
-
       const quality = new Map<number, Workout>();
       qualityDays.forEach((d, j) => {
         const date = dateOf(d);
@@ -203,11 +200,19 @@ export function generatePlan(profile: Profile, startDate = today()): Plan {
               ? j === 0 ? intervalWorkout(date, ctx) : tempoWorkout(date, ctx)
               : tempoWorkout(date, ctx, true);
         quality.set(d, w);
-        remaining -= w.km;
       });
 
+      // Split the easy volume so the long run is clearly the longest run of the week:
+      // it weighs 1.6 easy runs and is at least 1 km longer than any hard session.
       const easyDays = days.filter((d) => d !== longDay && !quality.has(d));
-      const easyKm = easyDays.length ? remaining / easyDays.length : 0;
+      const qualityKm = [...quality.values()].reduce((sum, w) => sum + w.km, 0);
+      const maxQualityKm = Math.max(0, ...[...quality.values()].map((w) => w.km));
+      const easyVolume = Math.max(weekKm - qualityKm, 3 * (easyDays.length + 1));
+      const cap = phase === "taper" ? longCap * 0.7 : longCap;
+      let longKm = (easyVolume * 1.6) / (easyDays.length + 1.6);
+      longKm = Math.min(cap, Math.max(longKm, maxQualityKm + 1));
+      const easyKm = easyDays.length ? Math.max(3, (easyVolume - longKm) / easyDays.length) : 0;
+      if (easyKm >= longKm) longKm = Math.min(cap, easyKm + 1);
       // In base weeks one easy run gets strides so speed is not neglected.
       const stridesDay = phase === "base" || qualityDays.length === 0 ? easyDays[easyDays.length - 1] : undefined;
 

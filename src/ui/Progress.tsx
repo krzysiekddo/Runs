@@ -1,4 +1,6 @@
 import { signOut } from "firebase/auth";
+import { useState } from "react";
+import { deleteAllData } from "../lib/store";
 import { effectiveHrMax } from "../lib/analysis";
 import { addDays, fmtDate, fmtDuration, fmtKmShort, fmtPace, mondayOf, today } from "../lib/format";
 import { computeVdot, RACE_DISTANCES } from "../lib/plan";
@@ -9,7 +11,8 @@ import { useApp } from "./common";
 const SHOE_LIFE_KM = 700;
 
 export function Progress() {
-  const { plan, profile, runs, editProfile, user } = useApp();
+  const { db, plan, profile, runs, editProfile, user, notify } = useApp();
+  const [confirmReset, setConfirmReset] = useState(false);
   const vdot = computeVdot(profile);
   const paces = trainingPaces(vdot);
   const hr = effectiveHrMax(profile, runs);
@@ -130,6 +133,31 @@ export function Progress() {
         <button className="secondary block-btn" onClick={editProfile}>
           Zmień cel i przelicz plan
         </button>
+        {confirmReset ? (
+          <div className="reset-confirm">
+            <p>Usunąć profil, plan i wszystkie {runs.length} biegi? Tego nie da się cofnąć.</p>
+            <div className="detail-actions">
+              <button className="secondary" onClick={() => setConfirmReset(false)}>
+                Anuluj
+              </button>
+              <button
+                className="danger"
+                onClick={() => {
+                  deleteAllData(db, user.uid).catch((e) => {
+                    console.error(e);
+                    notify("Nie udało się usunąć danych z serwera.");
+                  });
+                }}
+              >
+                Usuń wszystko
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="text-btn danger-text" onClick={() => setConfirmReset(true)}>
+            Usuń moje dane i zacznij od nowa
+          </button>
+        )}
         <p className="muted small">
           Zalogowano jako {user.displayName ?? user.email}.{" "}
           <button className="text-btn inline" onClick={() => auth && signOut(auth)}>

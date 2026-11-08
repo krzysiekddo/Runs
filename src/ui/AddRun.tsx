@@ -43,7 +43,7 @@ function toForm(run?: Run, date?: string): Form {
 }
 
 export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone: () => void }) {
-  const { db, user, runs } = useApp();
+  const { db, user, runs, notify } = useApp();
   const [f, setF] = useState<Form>(() => toForm(run, date));
   const [ocr, setOcr] = useState<{ busy: boolean; label: string; progress: number; message?: string; error?: string }>({
     busy: false,
@@ -51,7 +51,6 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
     progress: 0,
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<Form>) => setF((x) => ({ ...x, ...patch }));
 
   const shoes = useMemo(() => [...new Set(runs.map((r) => r.shoe).filter(Boolean))] as string[], [runs]);
@@ -93,10 +92,9 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
     }
   }
 
-  async function save() {
-    if (!valid) return;
+  function save() {
+    if (!valid || saving) return;
     setSaving(true);
-    setError(null);
     const record: Run = {
       id: run?.id ?? `${f.date}-${Date.now().toString(36)}`,
       date: f.date,
@@ -112,14 +110,13 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
       splits: f.splits.length ? f.splits : undefined,
       createdAt: run?.createdAt ?? new Date().toISOString(),
     };
-    try {
-      await saveRun(db, user.uid, record);
-      onDone();
-    } catch (e) {
+    // Firestore applies the write locally right away; the server confirmation can come later.
+    saveRun(db, user.uid, record).catch((e) => {
       console.error(e);
-      setError("Nie udało się zapisać biegu. Sprawdź połączenie i spróbuj ponownie.");
-      setSaving(false);
-    }
+      notify("Serwer nie przyjął zapisu biegu. Bieg jest tylko na tym urządzeniu.");
+    });
+    notify(run ? "Zapisano zmiany" : "Bieg zapisany");
+    onDone();
   }
 
   return (
@@ -146,6 +143,7 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
       {ocr.message && <p className="notice good">{ocr.message}</p>}
       {ocr.error && <p className="notice warn">{ocr.error}</p>}
 
+      <fieldset className="form-lock" disabled={ocr.busy || saving}>
       <div className="form-grid">
         <label className="field">
           <span className="field-label">Data</span>
@@ -214,6 +212,8 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
         <textarea rows={2} placeholder="Jak się czułeś, co bolało, pogoda…" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
 
+      </fieldset>
+
       {f.splits.length > 0 && (
         <div className="splits-preview">
           <Splits run={f} />
@@ -223,13 +223,8 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
         </div>
       )}
 
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
       <button className="primary block-btn" disabled={!valid || saving || ocr.busy} onClick={save}>
-        {saving ? "Zapisuję…" : run ? "Zapisz zmiany" : "Zapisz bieg"}
+        {run ? "Zapisz zmiany" : "Zapisz bieg"}
       </button>
     </div>
   );
