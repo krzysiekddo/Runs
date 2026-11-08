@@ -6,6 +6,7 @@ import { Icon, useApp } from "./common";
 
 export function EventsBlock({ onOpen }: { onOpen: (e: PlanEvent | null) => void }) {
   const { profile } = useApp();
+  const [open, setOpen] = useState(false);
   const t = today();
   const upcoming = (profile.events ?? [])
     .filter((e) => (e.endDate ?? e.date) >= addDays(t, -14))
@@ -14,12 +15,22 @@ export function EventsBlock({ onOpen }: { onOpen: (e: PlanEvent | null) => void 
   return (
     <section className="block">
       <div className="row-between">
-        <h2 className="block-title">Wydarzenia</h2>
+        <button className="collapse-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <span className={`collapse-chevron ${open ? "open" : ""}`}>
+            <Icon name="chevron" size={18} />
+          </span>
+          <h2 className="block-title">Wydarzenia</h2>
+          {!open && upcoming.length > 0 && (
+            <span className="muted small">
+              {upcoming.length}, najbliższe {fmtDate(upcoming[0].date)}
+            </span>
+          )}
+        </button>
         <button className="text-btn" onClick={() => onOpen(null)}>
           Dodaj
         </button>
       </div>
-      {upcoming.length === 0 ? (
+      {!open ? null : upcoming.length === 0 ? (
         <p className="muted small events-empty">
           Masz po drodze inny start albo wyjazd? Dodaj go, a plan ułoży się wokół niego.
         </p>

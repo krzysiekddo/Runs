@@ -1773,3 +1773,34 @@ input[type="date"]::-webkit-date-and-time-value {
 .settings-account {
   text-align: center;
 }
+
+/* ---------- collapsible block ---------- */
+
+.collapse-head {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 40px;
+  text-align: left;
+}
+
+.collapse-head .block-title {
+  padding: 0 6px 0 0;
+}
+
+.collapse-chevron {
+  display: inline-flex;
+  align-self: center;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.collapse-chevron.open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-chevron {
+    transition: none;
+  }
+}
