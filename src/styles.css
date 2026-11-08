@@ -1483,3 +1483,36 @@ textarea:focus {
 .ob-actions .primary {
   width: 100%;
 }
+
+/* ---------- segmented time input ---------- */
+
+.duration {
+  display: flex;
+  gap: 8px;
+}
+
+.duration-part {
+  position: relative;
+  flex: 1;
+  max-width: 120px;
+}
+
+.duration-part input {
+  padding-right: 46px;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+}
+
+.duration-part span {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.duration.invalid input {
+  border-color: var(--error);
+}

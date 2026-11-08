@@ -1,6 +1,6 @@
 import type { User } from "firebase/auth";
 import type { Firestore } from "firebase/firestore";
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { WORKOUT_LABEL } from "../lib/plan";
 import type { Plan, Profile, Run, WorkoutType } from "../lib/types";
 
@@ -84,6 +84,91 @@ export function Stat({ label, value, unit }: { label: string; value: ReactNode; 
         {value}
         {unit && <small>{unit}</small>}
       </span>
+    </div>
+  );
+}
+
+type Unit = "h" | "m" | "s";
+const UNIT_SEC: Record<Unit, number> = { h: 3600, m: 60, s: 1 };
+const UNIT_LABEL: Record<Unit, string> = { h: "godz.", m: "min", s: "s" };
+
+function splitDuration(sec: number | null, units: Unit[]): string[] {
+  if (sec === null || !Number.isFinite(sec)) return units.map(() => "");
+  let rest = Math.round(sec);
+  return units.map((u, i) => {
+    // The first unit absorbs overflow (e.g. 65 min when there is no hour field).
+    const n = i === 0 ? Math.floor(rest / UNIT_SEC[u]) : Math.floor(rest / UNIT_SEC[u]) % 60;
+    rest -= n * UNIT_SEC[u];
+    return i === 0 ? (n ? String(n) : "") : String(n).padStart(2, "0");
+  });
+}
+
+/** null = all fields empty, NaN = a field is out of range (e.g. 75 in the minutes box). */
+function joinDuration(parts: string[], units: Unit[]): number | null {
+  if (parts.every((p) => !p.trim())) return null;
+  let total = 0;
+  for (const [i, p] of parts.entries()) {
+    const n = p.trim() ? Number(p) : 0;
+    if (!Number.isInteger(n) || n < 0 || (i > 0 && n > 59)) return NaN;
+    total += n * UNIT_SEC[units[i]];
+  }
+  return total;
+}
+
+/**
+ * Separate number boxes for hours / minutes / seconds, so phones show the numeric
+ * keypad without needing a colon key. Focus jumps to the next box after two digits.
+ */
+export function DurationInput({
+  value,
+  onChange,
+  units,
+  placeholder = [],
+  label,
+}: {
+  value: number | null;
+  onChange: (sec: number | null) => void;
+  units: Unit[];
+  placeholder?: string[];
+  label: string;
+}) {
+  const [parts, setParts] = useState(() => splitDuration(value, units));
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Follow outside changes (e.g. values read from a screenshot).
+  useEffect(() => {
+    if (!Object.is(value, joinDuration(parts, units))) setParts(splitDuration(value, units));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const invalid = Number.isNaN(joinDuration(parts, units));
+
+  return (
+    <div className={`duration ${invalid ? "invalid" : ""}`} role="group" aria-label={label}>
+      {units.map((u, i) => (
+        <label key={u} className="duration-part">
+          <input
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={i === 0 && u !== "h" ? 3 : 2}
+            placeholder={placeholder[i] ?? (i === 0 ? "0" : "00")}
+            value={parts[i]}
+            aria-label={`${label}: ${UNIT_LABEL[u]}`}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "");
+              const next = parts.map((p, j) => (j === i ? v : p));
+              setParts(next);
+              onChange(joinDuration(next, units));
+              if (v.length >= 2 && i < units.length - 1 && (i > 0 || u === "h")) refs.current[i + 1]?.focus();
+            }}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+          />
+          <span>{UNIT_LABEL[u]}</span>
+        </label>
+      ))}
     </div>
   );
 }

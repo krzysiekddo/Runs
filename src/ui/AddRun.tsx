@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
-import { fmtDuration, fmtPace, parseDuration, today } from "../lib/format";
+import { fmtPace, today } from "../lib/format";
 import { readScreenshots } from "../lib/ocr";
 import { saveRun } from "../lib/store";
 import type { Run, Split } from "../lib/types";
-import { Icon, useApp } from "./common";
+import { DurationInput, Icon, useApp } from "./common";
 import { EFFORT_LABELS, Splits } from "./Runs";
 
 type Form = {
   date: string;
   km: string;
-  time: string;
+  sec: number | null;
   avgHr: string;
   elevationM: string;
   kcal: string;
@@ -30,7 +30,7 @@ function toForm(run?: Run, date?: string): Form {
   return {
     date: run?.date ?? date ?? today(),
     km: numText(run?.km),
-    time: run ? fmtDuration(run.movingSec) : "",
+    sec: run?.movingSec ?? null,
     avgHr: numText(run?.avgHr),
     elevationM: numText(run?.elevationM),
     kcal: numText(run?.kcal),
@@ -56,7 +56,7 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
 
   const shoes = useMemo(() => [...new Set(runs.map((r) => r.shoe).filter(Boolean))] as string[], [runs]);
   const km = parseNum(f.km);
-  const sec = parseDuration(f.time);
+  const sec = f.sec !== null && Number.isFinite(f.sec) ? f.sec : null;
   const pace = km && sec ? sec / km : undefined;
   const valid = !!km && km > 0 && km < 300 && !!sec && !!pace && pace > 120 && pace < 1200 && !!f.date;
 
@@ -70,7 +70,7 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
         ...x,
         date: p.date ?? x.date,
         km: p.km !== undefined ? numText(p.km) : x.km,
-        time: p.movingSec !== undefined ? fmtDuration(p.movingSec) : x.time,
+        sec: p.movingSec ?? x.sec,
         avgHr: p.avgHr !== undefined ? String(p.avgHr) : x.avgHr,
         elevationM: p.elevationM !== undefined ? String(p.elevationM) : x.elevationM,
         kcal: p.kcal !== undefined ? String(p.kcal) : x.kcal,
@@ -158,10 +158,10 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
             <span>km</span>
           </div>
         </label>
-        <label className="field">
+        <div className="field span-2">
           <span className="field-label">Czas ruchu</span>
-          <input inputMode="numeric" placeholder="45:02" value={f.time} onChange={(e) => set({ time: e.target.value })} />
-        </label>
+          <DurationInput label="Czas ruchu" units={["h", "m", "s"]} placeholder={["0", "45", "02"]} value={f.sec} onChange={(sec) => set({ sec })} />
+        </div>
         <div className="field">
           <span className="field-label">Tempo</span>
           <output className="computed">{pace ? `${fmtPace(pace)} /km` : "–"}</output>

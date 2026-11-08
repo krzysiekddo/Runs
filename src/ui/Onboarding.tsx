@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { addDays, DAY_LONG, DAY_SHORT, fmtDuration, fmtPace, parseDuration, today } from "../lib/format";
+import { addDays, DAY_LONG, DAY_SHORT, fmtDuration, fmtPace, today } from "../lib/format";
 import { generatePlan, RACE_DISTANCES } from "../lib/plan";
 import type { GoalType, Plan, Profile } from "../lib/types";
+import { DurationInput } from "./common";
 import { predictTime, trainingPaces, vdotFromRace } from "../lib/vdot";
 
 const GOALS: { type: GoalType; title: string; text: string }[] = [
@@ -14,9 +15,9 @@ type Draft = {
   goal: GoalType;
   raceKm: number;
   raceDate: string;
-  target: string;
+  targetSec: number | null;
   recentKm: number;
-  recentTime: string;
+  recentSec: number | null;
   weeklyKm: string;
   hrMax: string;
   hrRest: string;
@@ -29,9 +30,9 @@ function toDraft(p?: Profile | null): Draft {
     goal: p?.goal.type ?? "fitness",
     raceKm: p?.goal.raceKm ?? 10,
     raceDate: p?.goal.raceDate ?? addDays(today(), 70),
-    target: p?.goal.targetSec ? fmtDuration(p.goal.targetSec) : "",
+    targetSec: p?.goal.targetSec ?? null,
     recentKm: p?.recent.km ?? 5,
-    recentTime: p ? fmtDuration(p.recent.sec) : "",
+    recentSec: p?.recent.sec ?? null,
     weeklyKm: p ? String(p.weeklyKm) : "",
     hrMax: p?.hrMax ? String(p.hrMax) : "",
     hrRest: p?.hrRest ? String(p.hrRest) : "",
@@ -63,14 +64,13 @@ export function Onboarding({
   const steps = d.goal === "race" ? ["goal", "race", "level", "hr", "days", "summary"] : ["goal", "level", "hr", "days", "summary"];
   const current = steps[Math.min(step, steps.length - 1)];
 
-  const recentSec = parseDuration(d.recentTime);
-  const targetSec = d.target ? parseDuration(d.target) : null;
-  const recentValid = recentSec !== null && recentSec / d.recentKm >= 150 && recentSec / d.recentKm <= 720;
+  const { recentSec, targetSec } = d;
+  const recentValid = recentSec !== null && Number.isFinite(recentSec) && recentSec / d.recentKm >= 150 && recentSec / d.recentKm <= 720;
   const weeklyKm = intOrUndef(d.weeklyKm, 0, 250);
 
   const valid: Record<string, boolean> = {
     goal: true,
-    race: d.raceDate >= addDays(today(), 7) && (!d.target || targetSec !== null),
+    race: d.raceDate >= addDays(today(), 7) && (targetSec === null || (Number.isFinite(targetSec) && targetSec > 0)),
     level: recentValid && weeklyKm !== undefined,
     hr: (!d.hrMax || intOrUndef(d.hrMax, 140, 230) !== undefined) && (!d.hrRest || intOrUndef(d.hrRest, 30, 100) !== undefined),
     days: d.days.length >= 2,
@@ -83,7 +83,7 @@ export function Onboarding({
     return {
       goal:
         d.goal === "race"
-          ? { type: "race", raceKm: d.raceKm, raceDate: d.raceDate, targetSec: targetSec ?? undefined }
+          ? { type: "race", raceKm: d.raceKm, raceDate: d.raceDate, targetSec: targetSec || undefined }
           : { type: d.goal },
       recent: { km: d.recentKm, sec: recentSec! },
       weeklyKm,
@@ -152,8 +152,8 @@ export function Onboarding({
           <Field label="Data startu">
             <input type="date" value={d.raceDate} min={addDays(today(), 7)} onChange={(e) => set({ raceDate: e.target.value })} />
           </Field>
-          <Field label="Czas docelowy" hint="Opcjonalnie, np. 55:00 albo 1:59:00. Bez niego tempo startowe wyliczymy z formy.">
-            <input inputMode="numeric" placeholder="np. 55:00" value={d.target} onChange={(e) => set({ target: e.target.value })} />
+          <Field label="Czas docelowy" hint="Opcjonalnie. Bez niego tempo startowe wyliczymy z formy." group>
+            <DurationInput label="Czas docelowy" units={["h", "m"]} placeholder={["0", "55"]} value={targetSec} onChange={(targetSec) => set({ targetSec })} />
           </Field>
         </Step>
       )}
@@ -163,8 +163,14 @@ export function Onboarding({
           <Field label="Najlepszy wynik z ostatnich 2–3 miesięcy" group>
             <Chips options={[{ value: 5, label: "5 km" }, { value: 10, label: "10 km" }]} value={d.recentKm} onChange={(recentKm) => set({ recentKm })} />
           </Field>
-          <Field label={`Czas na ${d.recentKm} km`} hint="Może być z treningu, jeśli biegłeś mocno. Format mm:ss.">
-            <input inputMode="numeric" placeholder={d.recentKm === 5 ? "np. 27:30" : "np. 58:00"} value={d.recentTime} onChange={(e) => set({ recentTime: e.target.value })} />
+          <Field label={`Czas na ${d.recentKm} km`} hint="Może być z treningu, jeśli biegłeś mocno." group>
+            <DurationInput
+              label={`Czas na ${d.recentKm} km`}
+              units={["m", "s"]}
+              placeholder={d.recentKm === 5 ? ["27", "30"] : ["58", "00"]}
+              value={recentSec}
+              onChange={(recentSec) => set({ recentSec })}
+            />
           </Field>
           <Field label="Ile km biegasz tygodniowo?" hint="Średnio z ostatniego miesiąca.">
             <div className="input-unit">
