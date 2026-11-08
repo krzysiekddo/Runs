@@ -1778,7 +1778,7 @@ input[type="date"]::-webkit-date-and-time-value {
 
 .collapse-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   min-height: 40px;
   text-align: left;
@@ -1786,11 +1786,12 @@ input[type="date"]::-webkit-date-and-time-value {
 
 .collapse-head .block-title {
   padding: 0 6px 0 0;
+  line-height: 1.2;
 }
 
 .collapse-chevron {
   display: inline-flex;
-  align-self: center;
+  margin-left: -4px;
   color: var(--muted);
   transition: transform 0.15s;
 }

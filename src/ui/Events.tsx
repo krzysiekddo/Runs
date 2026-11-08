@@ -17,7 +17,7 @@ export function EventsBlock({ onOpen }: { onOpen: (e: PlanEvent | null) => void 
       <div className="row-between">
         <button className="collapse-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
           <span className={`collapse-chevron ${open ? "open" : ""}`}>
-            <Icon name="chevron" size={18} />
+            <Icon name="chevron" size={24} />
           </span>
           <span className="block-title">Wydarzenia</span>
           {!open && upcoming.length > 0 && (
