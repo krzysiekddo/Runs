@@ -2,9 +2,10 @@ import { effectiveHrMax } from "../lib/analysis";
 import { addDays, fmtDate, fmtDuration, fmtKmShort, fmtPace, mondayOf, today } from "../lib/format";
 import { RACE_DISTANCES } from "../lib/plan";
 import { hrZones, predictTime, trainingPaces } from "../lib/vdot";
-import { SettingsButton, useApp } from "./common";
+import { useState } from "react";
+import { removeShoe, SHOE_LIFE_KM, shoeMileage, upsertShoe, type ShoeMileage } from "../lib/shoes";
+import { SettingsButton, Sheet, useApp } from "./common";
 
-const SHOE_LIFE_KM = 700;
 
 export function Progress() {
   const { plan, profile, runs } = useApp();
@@ -23,8 +24,9 @@ export function Progress() {
   });
   const maxKm = Math.max(1, ...weeks.map((w) => Math.max(w.km, w.planned ?? 0)));
 
-  const shoes = new Map<string, number>();
-  for (const r of runs) if (r.shoe) shoes.set(r.shoe, (shoes.get(r.shoe) ?? 0) + r.km);
+  const shoes = shoeMileage(runs, profile.shoes);
+  // undefined = closed, null = new pair
+  const [editingShoe, setEditingShoe] = useState<ShoeMileage | null | undefined>(undefined);
 
   return (
     <div className="screen">
@@ -107,27 +109,91 @@ export function Progress() {
         )}
       </section>
 
-      {shoes.size > 0 && (
-        <section className="block">
+      <section className="block">
+        <div className="row-between">
           <h2 className="block-title">Buty</h2>
-          <ul className="shoes">
-            {[...shoes.entries()].sort((a, b) => b[1] - a[1]).map(([name, km]) => (
-              <li key={name}>
-                <div className="row-between">
-                  <span>{name}</span>
-                  <span className={km > SHOE_LIFE_KM ? "warn-text" : "muted"}>
-                    {Math.round(km)} / {SHOE_LIFE_KM} km
+          <button className="text-btn" onClick={() => setEditingShoe(null)}>
+            Dodaj
+          </button>
+        </div>
+        {shoes.length === 0 ? (
+          <p className="muted small events-empty">Buty pojawią się tu, gdy dodasz je do biegu. Możesz też dodać parę ręcznie z aktualnym przebiegiem.</p>
+        ) : (
+          <ul className="list">
+            {shoes.map((s) => (
+              <li key={s.name}>
+                <button className="shoe-row" onClick={() => setEditingShoe(s)}>
+                  <span className="row-between">
+                    <strong>{s.name}</strong>
+                    <span className={s.km > SHOE_LIFE_KM ? "warn-text" : "muted"}>
+                      {Math.round(s.km)} / {SHOE_LIFE_KM} km
+                    </span>
                   </span>
-                </div>
-                <span className="progress">
-                  <span style={{ width: `${Math.min(100, (km / SHOE_LIFE_KM) * 100)}%` }} />
-                </span>
+                  <span className="progress">
+                    <span style={{ width: `${Math.min(100, (s.km / SHOE_LIFE_KM) * 100)}%` }} />
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
-        </section>
+        )}
+      </section>
+
+      {editingShoe !== undefined && (
+        <Sheet title={editingShoe ? editingShoe.name : "Nowe buty"} onClose={() => setEditingShoe(undefined)}>
+          <ShoeEditor shoe={editingShoe} onDone={() => setEditingShoe(undefined)} />
+        </Sheet>
       )}
 
+    </div>
+  );
+}
+
+function ShoeEditor({ shoe, onDone }: { shoe: ShoeMileage | null; onDone: () => void }) {
+  const { profile, updateProfile } = useApp();
+  const [name, setName] = useState(shoe?.name ?? "");
+  const [km, setKm] = useState(shoe ? String(Math.round(shoe.km)) : "");
+  const value = Number(km.replace(",", "."));
+  const valid = name.trim().length > 0 && km.trim() !== "" && Number.isFinite(value) && value >= 0 && value < 10_000;
+
+  return (
+    <div className="add-run">
+      {!shoe && (
+        <label className="field">
+          <span className="field-label">Model</span>
+          <input placeholder="np. ASICS Nimbus 27" value={name} onChange={(e) => setName(e.target.value)} />
+          <span className="field-hint">Wpisz tak samo jak w biegach, żeby kilometry się sumowały.</span>
+        </label>
+      )}
+      <label className="field">
+        <span className="field-label">Aktualny przebieg</span>
+        <div className="input-unit">
+          <input inputMode="decimal" placeholder="np. 200" value={km} onChange={(e) => setKm(e.target.value)} autoFocus />
+          <span>km</span>
+        </div>
+        <span className="field-hint">Każdy bieg dodany od teraz w tych butach doliczy się do tej wartości.</span>
+      </label>
+      <button
+        className="primary block-btn"
+        disabled={!valid}
+        onClick={() => {
+          updateProfile({ shoes: upsertShoe(profile.shoes, name, value) }, "Przebieg butów zapisany");
+          onDone();
+        }}
+      >
+        Zapisz przebieg
+      </button>
+      {shoe?.manual && (
+        <button
+          className="text-btn"
+          onClick={() => {
+            updateProfile({ shoes: removeShoe(profile.shoes, shoe.name) }, "Przebieg liczony z biegów");
+            onDone();
+          }}
+        >
+          Licz przebieg tylko z zapisanych biegów
+        </button>
+      )}
     </div>
   );
 }

@@ -16,6 +16,8 @@ export type AppState = {
   editProfile: () => void;
   /** Stores the plan's events and regenerates the plan around them. */
   saveEvents: (events: PlanEvent[], message: string) => void;
+  /** Saves profile fields that do not change the plan's structure (e.g. shoes). */
+  updateProfile: (patch: Partial<Profile>, message: string) => void;
   openSettings: () => void;
   /** Shows a short message at the bottom of the screen. */
   notify: (message: string) => void;

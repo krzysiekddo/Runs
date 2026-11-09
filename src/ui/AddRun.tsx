@@ -43,7 +43,7 @@ function toForm(run?: Run, date?: string): Form {
 }
 
 export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone: () => void }) {
-  const { db, user, runs, notify } = useApp();
+  const { db, user, runs, profile, notify } = useApp();
   const [f, setF] = useState<Form>(() => toForm(run, date));
   const [ocr, setOcr] = useState<{ busy: boolean; label: string; progress: number; message?: string; error?: string }>({
     busy: false,
@@ -53,7 +53,10 @@ export function AddRun({ run, date, onDone }: { run?: Run; date?: string; onDone
   const [saving, setSaving] = useState(false);
   const set = (patch: Partial<Form>) => setF((x) => ({ ...x, ...patch }));
 
-  const shoes = useMemo(() => [...new Set(runs.map((r) => r.shoe).filter(Boolean))] as string[], [runs]);
+  const shoes = useMemo(
+    () => [...new Set([...(profile.shoes ?? []).map((s) => s.name), ...runs.map((r) => r.shoe)].filter(Boolean))] as string[],
+    [runs, profile.shoes],
+  );
   const km = parseNum(f.km);
   const sec = f.sec !== null && Number.isFinite(f.sec) ? f.sec : null;
   const pace = km && sec ? sec / km : undefined;

@@ -1821,3 +1821,17 @@ input[type="date"]::-webkit-date-and-time-value {
     transition: none;
   }
 }
+
+.shoe-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.shoe-row .progress {
+  max-width: none;
+  margin-top: 0;
+}

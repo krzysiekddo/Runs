@@ -25,6 +25,14 @@ export type Profile = {
   /** First day of the current training block; weeks and phases count from its Monday. */
   planStart?: string;
   events?: PlanEvent[];
+  shoes?: Shoe[];
+};
+
+/** Mileage entered by hand; runs logged after `setAt` are added on top of `baseKm`. */
+export type Shoe = {
+  name: string;
+  baseKm: number;
+  setAt: string;
 };
 
 /**

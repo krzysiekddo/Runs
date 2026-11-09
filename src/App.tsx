@@ -138,6 +138,15 @@ function Home({ db, user }: { db: Firestore; user: User }) {
     setTab("today");
   }
 
+  function updateProfile(patch: Partial<Profile>, message: string) {
+    const profile = { ...data.profile!, ...patch };
+    saveProfile(db, user.uid, profile, generatePlan(profile, data.runs)).catch((e) => {
+      console.error(e);
+      setToast("Serwer nie przyjął zmian.");
+    });
+    setToast(message);
+  }
+
   // The plan is derived from the profile and the logged runs, so it adapts after every run.
   const plan = useMemo(() => (data.profile ? generatePlan(data.profile, data.runs) : null), [data.profile, data.runs]);
 
@@ -184,14 +193,8 @@ function Home({ db, user }: { db: Firestore; user: User }) {
         editProfile: () => setEditingProfile(true),
         notify: setToast,
         openSettings: () => setSettingsOpen(true),
-        saveEvents: (events, message) => {
-          const profile = { ...data.profile!, events };
-          saveProfile(db, user.uid, profile, generatePlan(profile)).catch((e) => {
-            console.error(e);
-            setToast("Serwer nie przyjął zmian w planie.");
-          });
-          setToast(message);
-        },
+        saveEvents: (events, message) => updateProfile({ events }, message),
+        updateProfile,
       }}
     >
       <div className="app">
