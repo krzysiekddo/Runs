@@ -102,14 +102,16 @@ export async function readScreenshots(files: File[], onProgress: (p: number, lab
       await worker.setParameters({ tessedit_pageseg_mode: "3" });
       const { data } = await worker.recognize(image);
       const parsed = parseStravaText(data.text);
-      if (isSplitsText(data.text)) {
-        // Automatic layout splits the table into columns (paces without heart rate); read it
-        // again as rows and keep the most complete reading.
-        for (const psm of ["4", "6"]) {
-          await worker.setParameters({ tessedit_pageseg_mode: psm });
-          const again = parseStravaText((await worker.recognize(image)).data.text);
-          if (splitsScore(again.splits) > splitsScore(parsed.splits)) parsed.splits = again.splits;
-        }
+      // Automatic layout often splits the splits table into columns or misses its header,
+      // wherever it sits on the screen. Unless it already gave kilometres with heart rate,
+      // read the screen again as rows and keep the most complete table.
+      for (const psm of ["6", "4"]) {
+        if ((parsed.splits?.length ?? 0) > 0 && parsed.splits!.every((x) => x.hr)) break;
+        await worker.setParameters({ tessedit_pageseg_mode: psm });
+        const text = (await worker.recognize(image)).data.text;
+        if (!isSplitsText(text)) continue;
+        const again = parseStravaText(text);
+        if (splitsScore(again.splits) > splitsScore(parsed.splits)) parsed.splits = again.splits;
       }
       parts.push(parsed);
     }
