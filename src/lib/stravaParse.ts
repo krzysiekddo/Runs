@@ -97,12 +97,16 @@ function parseSummary(raw: string, now: Date): ParsedScreen {
   out.date = parseDate(raw, now);
 
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  // Title: first real text line between the "Dzisiaj o 11:40 · …" line and the stats,
+  // skipping achievement banners such as "Twój najlepszy czas na 10 km" / "2min 1s".
   const statsLine = lines.findIndex((l) => /^dystans/.test(norm(l)));
+  const dateLine = lines.findIndex((l) => /\bo\s+\d{1,2}:\d{2}/.test(l));
   if (statsLine > 0) {
-    const candidate = lines[statsLine - 1];
-    if (/[a-ząćęłńóśźż]{3}/i.test(candidate) && !/\bo\s+\d{1,2}:\d{2}/.test(candidate)) {
-      out.title = candidate.replace(/^[^A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]+/, "");
-    }
+    const banner = /najlepsz|rekord|osiagniec|osobist|\bpr\b|historii|\d+\s*min|\d+\s*s\b|^\W*\d/;
+    const candidate = lines
+      .slice(dateLine >= 0 && dateLine < statsLine ? dateLine + 1 : Math.max(0, statsLine - 3), statsLine)
+      .find((l) => /[a-ząćęłńóśźż]{3}/i.test(l) && !banner.test(norm(l)));
+    if (candidate) out.title = candidate.replace(/^[^A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]+/, "");
   }
 
   for (const line of lines) {
@@ -122,7 +126,9 @@ function parseSummary(raw: string, now: Date): ParsedScreen {
 
 function parseSplits(raw: string): Split[] {
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const start = lines.findIndex((l) => norm(l).includes("miedzyczasy"));
+  // The table may be scrolled so that only its "Km Tempo Wys. HR" header is visible.
+  const header = lines.findIndex((l) => /\bkm\b.*\btempo\b/.test(norm(l)));
+  const start = header >= 0 ? header : lines.findIndex((l) => norm(l).includes("miedzyczasy"));
   const splits: Split[] = [];
   let withHr = false;
   for (const line of lines.slice(start + 1)) {
@@ -143,11 +149,17 @@ function parseSplits(raw: string): Split[] {
   return splits;
 }
 
+export function isSplitsText(raw: string): boolean {
+  const t = norm(raw);
+  // Column layouts may put "Km", "Tempo", "Wys." and "HR" on separate lines.
+  return t.includes("miedzyczasy") || (/\btempo\b/.test(t) && /\bwys\b/.test(t) && /\bhr\b/.test(t));
+}
+
 export function parseStravaText(raw: string, now = new Date()): ParsedScreen {
   const t = norm(raw);
   const result: ParsedScreen = {};
   if (t.includes("dystans")) Object.assign(result, parseSummary(raw, now));
-  if (t.includes("miedzyczasy")) {
+  if (isSplitsText(raw)) {
     const splits = parseSplits(raw);
     if (splits.length) result.splits = splits;
   }

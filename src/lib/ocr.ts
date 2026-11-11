@@ -1,5 +1,5 @@
 // OCR runs fully in the browser with Tesseract.js, loaded from a CDN on first use.
-import { mergeParsed, parseStravaText, type ParsedScreen } from "./stravaParse";
+import { isSplitsText, mergeParsed, parseStravaText, type ParsedScreen } from "./stravaParse";
 
 type TesseractWorker = {
   setParameters(p: Record<string, string>): Promise<unknown>;
@@ -30,7 +30,11 @@ function loadTesseract(): Promise<TesseractGlobal> {
   return loading;
 }
 
-/** Grayscale + invert dark-mode screenshots + stretch contrast: Tesseract reads dark text on white best. */
+/**
+ * Grayscale, then paint coloured pixels (Strava's blue split bars, badges, orange buttons)
+ * with the background shade so they cannot merge with the numbers, then invert dark-mode
+ * screenshots and stretch contrast: Tesseract reads dark text on white best.
+ */
 async function preprocess(file: File): Promise<HTMLCanvasElement> {
   const bitmap = await createImageBitmap(file);
   const scale = bitmap.width < 900 ? 2 : 1;
@@ -42,28 +46,43 @@ async function preprocess(file: File): Promise<HTMLCanvasElement> {
   const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const d = img.data;
 
-  let sum = 0;
-  const gray = new Uint8ClampedArray(d.length / 4);
-  for (let i = 0; i < gray.length; i++) {
-    const g = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
-    gray[i] = g;
-    sum += g;
+  const n = d.length / 4;
+  const gray = new Float32Array(n);
+  const colored = new Uint8Array(n);
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) {
+    const r = d[i * 4];
+    const g = d[i * 4 + 1];
+    const b = d[i * 4 + 2];
+    gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+    colored[i] = Math.max(r, g, b) - Math.min(r, g, b) > 50 ? 1 : 0;
+    if (!colored[i]) hist[Math.round(gray[i])]++;
   }
-  const dark = sum / gray.length < 128;
+  let bg = 0;
+  for (let v = 1; v < 256; v++) if (hist[v] > hist[bg]) bg = v;
+  const dark = bg < 128;
+
   let lo = 255;
   let hi = 0;
-  for (let i = 0; i < gray.length; i++) {
-    if (dark) gray[i] = 255 - gray[i];
-    lo = Math.min(lo, gray[i]);
-    hi = Math.max(hi, gray[i]);
+  for (let i = 0; i < n; i++) {
+    let v = colored[i] ? bg : gray[i];
+    if (dark) v = 255 - v;
+    gray[i] = v;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
   }
   const range = Math.max(1, hi - lo);
-  for (let i = 0; i < gray.length; i++) {
+  for (let i = 0; i < n; i++) {
     const v = ((gray[i] - lo) * 255) / range;
     d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
   }
   ctx.putImageData(img, 0, 0);
   return canvas;
+}
+
+/** Kilometres read, with heart rate counting double. */
+function splitsScore(splits?: { hr?: number }[]): number {
+  return (splits ?? []).reduce((sum, s) => sum + (s.hr ? 2 : 1), 0);
 }
 
 export async function readScreenshots(files: File[], onProgress: (p: number, label: string) => void): Promise<ParsedScreen> {
@@ -76,12 +95,23 @@ export async function readScreenshots(files: File[], onProgress: (p: number, lab
     },
   });
   try {
-    await worker.setParameters({ tessedit_pageseg_mode: "3" });
     const parts: ParsedScreen[] = [];
     for (const [i, file] of files.entries()) {
       onProgress(0, files.length > 1 ? `Odczytuję screen ${i + 1} z ${files.length}…` : "Odczytuję dane…");
-      const { data } = await worker.recognize(await preprocess(file));
-      parts.push(parseStravaText(data.text));
+      const image = await preprocess(file);
+      await worker.setParameters({ tessedit_pageseg_mode: "3" });
+      const { data } = await worker.recognize(image);
+      const parsed = parseStravaText(data.text);
+      if (isSplitsText(data.text)) {
+        // Automatic layout splits the table into columns (paces without heart rate); read it
+        // again as rows and keep the most complete reading.
+        for (const psm of ["4", "6"]) {
+          await worker.setParameters({ tessedit_pageseg_mode: psm });
+          const again = parseStravaText((await worker.recognize(image)).data.text);
+          if (splitsScore(again.splits) > splitsScore(parsed.splits)) parsed.splits = again.splits;
+        }
+      }
+      parts.push(parsed);
     }
     return mergeParsed(parts);
   } finally {
